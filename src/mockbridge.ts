@@ -117,7 +117,9 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
       if (k in I18N.ko) el.placeholder = t(k)
     }
     const tg = document.querySelector<HTMLElement>('#langToggle')
-    if (tg) tg.textContent = lang === 'ko' ? 'EN' : '한국어'  // 버튼 = 전환 대상 언어 표기
+    if (tg) tg.textContent = lang === 'ko' ? 'EN' : 'KO'  // 버튼 = 전환 대상 언어 표기
+    // 호스트 앱(PyQt sim 등)이 콘솔 마커로 언어를 동기할 수 있게 방출
+    console.log('harness-lang ' + lang)
   }
   function setLang(l: HarnessLang): void {
     lang = l

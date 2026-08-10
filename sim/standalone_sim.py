@@ -69,13 +69,18 @@ QWidget#viewwrap { background: #0b0f0d; }
 
 
 class LoggingPage(QWebEnginePage):
-    """JS 콘솔 메시지를 지정 로그 위젯으로 캡처."""
+    """JS 콘솔 메시지를 지정 로그 위젯으로 캡처. 'harness-lang <ko|en>' 마커로 호스트 UI 언어 동기."""
 
-    def __init__(self, log: QPlainTextEdit, parent=None) -> None:
+    def __init__(self, log: QPlainTextEdit, parent=None, lang_cb=None) -> None:
         super().__init__(parent)
         self._log = log
+        self._lang_cb = lang_cb
 
     def javaScriptConsoleMessage(self, level, message, line, source):  # noqa: N802
+        if self._lang_cb and isinstance(message, str) and message.startswith("harness-lang "):
+            lang = message.split(" ", 1)[1].strip()
+            if lang in I18N:
+                self._lang_cb(lang)
         lv = level.value if hasattr(level, "value") else int(level)
         src = (source or "").rsplit("/", 1)[-1]
         self._log.appendPlainText(f"[{_LVL.get(lv, '?')}] {message}  ({src}:{line})")
@@ -96,8 +101,9 @@ def _dock(win: QMainWindow, title: str, widget: QWidget, area) -> QDockWidget:
     return d
 
 
-def _view_panel(url: str, log: QPlainTextEdit, tr: dict) -> QWidget:
-    """웹뷰 + 상단 버튼바(새로고침/DevTools) 패널. 콘솔 캡처는 log 로."""
+def _view_panel(url: str, log: QPlainTextEdit, tr: dict, lang_cb=None):
+    """웹뷰 + 상단 버튼바(새로고침/DevTools) 패널. 콘솔 캡처는 log 로.
+    반환: (wrap, reload_btn, dev_btn) — 언어 동기 시 라벨 갱신용."""
     wrap = QWidget()
     wrap.setObjectName("viewwrap")
     v = QVBoxLayout(wrap)
@@ -114,7 +120,7 @@ def _view_panel(url: str, log: QPlainTextEdit, tr: dict) -> QWidget:
     v.addLayout(bar)
 
     view = QWebEngineView()
-    page = LoggingPage(log, view)
+    page = LoggingPage(log, view, lang_cb=lang_cb)
     view.setPage(page)
     view.setUrl(QUrl(url))
     v.addWidget(view, 1)
@@ -130,7 +136,7 @@ def _view_panel(url: str, log: QPlainTextEdit, tr: dict) -> QWidget:
 
     reload_btn.clicked.connect(view.reload)
     dev_btn.clicked.connect(toggle)
-    return wrap
+    return wrap, reload_btn, dev_btn
 
 
 def main() -> int:
@@ -155,8 +161,22 @@ def main() -> int:
     g_log = QPlainTextEdit(); g_log.setReadOnly(True); g_log.setMaximumBlockCount(1000)
     s_log = QPlainTextEdit(); s_log.setReadOnly(True); s_log.setMaximumBlockCount(1000)
 
-    g_view = _dock(win, tr["glasses_view"], _view_panel(args.harness, g_log, tr), L)
-    s_view = _dock(win, tr["settings_view"], _view_panel(args.settings, s_log, tr), R)
+    # 하니스 웹 토글(#langToggle)의 'harness-lang' 콘솔 마커로 PyQt UI 언어를 실시간 동기.
+    btns: list = []
+
+    def retitle(lang: str) -> None:
+        d = I18N[lang]
+        win.setWindowTitle(d["title"])
+        g_view.setWindowTitle(d["glasses_view"]); s_view.setWindowTitle(d["settings_view"])
+        g_console.setWindowTitle(d["glasses_console"]); s_console.setWindowTitle(d["settings_console"])
+        for rb, db in btns:
+            rb.setText(d["reload"]); db.setText(d["devtools"])
+
+    g_panel, g_rb, g_db = _view_panel(args.harness, g_log, tr, lang_cb=retitle)
+    s_panel, s_rb, s_db = _view_panel(args.settings, s_log, tr)
+    btns.extend([(g_rb, g_db), (s_rb, s_db)])
+    g_view = _dock(win, tr["glasses_view"], g_panel, L)
+    s_view = _dock(win, tr["settings_view"], s_panel, R)
     g_console = _dock(win, tr["glasses_console"], g_log, L)
     s_console = _dock(win, tr["settings_console"], s_log, R)
 

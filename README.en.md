@@ -104,6 +104,7 @@ Prerequisite: a Vite-based Even Hub widget project (the official `evenhub init` 
 | Option | Default | Description |
 |---|---|---|
 | `widgetEntry` | (required) | Widget entry loader, called after the mock bridge is installed. `() => import('/src/main.ts')` |
+| `lang` | auto-detect | UI/log language `'ko'\|'en'`. Default = localStorage(`h_lang`) → `navigator.language`. The header `#langToggle` button switches instantly and persists. PyQt sim: `--lang ko\|en` |
 | `glass` | `'#glass'` | Glasses canvas (576×288). Selector or element |
 | `log` | `'#log'` | Log panel. `null` disables the log UI |
 | `geoInput` | `'#geo'` | GPS coordinate input field (`"lat,lon"`) |

@@ -11,9 +11,36 @@ interface ListBox { rect: Rect; items: string[] }
 // 텍스트 컨테이너 근사 렌더: border(펌웨어 borderRadius/Width) + content(textContainerUpgrade 로 갱신).
 interface TextBox { rect: Rect; borderW: number; borderR: number; content: string }
 
+export type HarnessLang = 'ko' | 'en'
+
+// UI/로그 문자열 사전. 토글(#langToggle)·localStorage(h_lang)·navigator.language 로 결정.
+const I18N = {
+  ko: {
+    hint: '위젯 무수정 구동 · 상단=안경 렌더(근사) · 하단=실시간 로그 · F12=DevTools',
+    btnClick: '● Click', btnUp: '▲ Up (이전)', btnDown: '▼ Down (다음)', btnDouble: '◎ Double (뒤로/종료)',
+    btnGeo: '📍 GPS 주입', ringHint: '링 조작 대응: Up/Down=슬라이드, Click=클릭, Double=더블탭',
+    logTitle: '실시간 디버그 로그', filterPh: '필터 (텍스트 포함)',
+    ready: 'harness ready — 위젯 로드 중…', shutdown: 'shutDown(앱 종료 요청)',
+    unknownMethod: 'unknown method: ', otherChannel: ' (기타 채널)',
+    pmIgnored: 'postMessage(비표준 페이로드 무시): ', gpsInjected: 'GPS 주입', once: '(1회)',
+  },
+  en: {
+    hint: 'Runs the widget unmodified · top = glasses render (approx.) · bottom = live log · F12 = DevTools',
+    btnClick: '● Click', btnUp: '▲ Up (prev)', btnDown: '▼ Down (next)', btnDouble: '◎ Double (back/exit)',
+    btnGeo: '📍 Inject GPS', ringHint: 'Ring mapping: Up/Down = slide, Click = tap, Double = double-tap',
+    logTitle: 'Live debug log', filterPh: 'Filter (substring)',
+    ready: 'harness ready — loading widget…', shutdown: 'shutDown (app exit request)',
+    unknownMethod: 'unknown method: ', otherChannel: ' (other channel)',
+    pmIgnored: 'postMessage (non-standard payload ignored): ', gpsInjected: 'GPS injected', once: '(one-shot)',
+  },
+} as const
+type I18nKey = keyof typeof I18N.ko
+
 export interface HarnessOptions {
   /** 위젯 엔트리 로더. mock 브릿지가 심긴 뒤 호출된다. 예: () => import('/src/main.ts') */
   widgetEntry: () => Promise<unknown>
+  /** UI/로그 언어. 기본 = localStorage('h_lang') → navigator.language 자동감지(ko*→ko, 그 외 en) */
+  lang?: HarnessLang
   /** 안경 캔버스(576×288). 셀렉터 또는 요소. 기본 '#glass' */
   glass?: string | HTMLCanvasElement
   /** 로그 패널 요소. 셀렉터 또는 요소. 기본 '#log'. null 로 끄기 가능 */
@@ -51,6 +78,8 @@ export interface HarnessApi {
   pushGeo: (lat?: number, lon?: number) => void
   /** 캔버스 강제 재렌더 */
   redraw: () => void
+  /** UI/로그 언어 전환(localStorage 영속) */
+  setLang: (l: HarnessLang) => void
 }
 
 function resolve<T extends Element>(v: string | T | null | undefined, fallback: string): T | null {
@@ -70,6 +99,33 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
   const capture = opts.capture ?? { containerID: 11, containerName: 'cap' }
   const [defLat, defLon] = opts.defaultGeo ?? [37.5665, 126.978]
   const prefix = opts.storagePrefix ?? 'h_'
+
+  // ── 언어(i18n) ────────────────────────────────────────────
+  let stored: string | null = null
+  try { stored = localStorage.getItem('h_lang') } catch { /* */ }
+  let lang: HarnessLang = opts.lang
+    ?? (stored === 'ko' || stored === 'en' ? stored
+      : (navigator.language ?? '').toLowerCase().startsWith('ko') ? 'ko' : 'en')
+  const t = (k: I18nKey): string => I18N[lang][k]
+  function applyI18n(): void {
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-i18n]'))) {
+      const k = el.dataset.i18n as I18nKey
+      if (k in I18N.ko) el.textContent = t(k)
+    }
+    for (const el of Array.from(document.querySelectorAll<HTMLInputElement>('[data-i18n-ph]'))) {
+      const k = el.dataset.i18nPh as I18nKey
+      if (k in I18N.ko) el.placeholder = t(k)
+    }
+    const tg = document.querySelector<HTMLElement>('#langToggle')
+    if (tg) tg.textContent = lang === 'ko' ? 'EN' : '한국어'  // 버튼 = 전환 대상 언어 표기
+  }
+  function setLang(l: HarnessLang): void {
+    lang = l
+    try { localStorage.setItem('h_lang', l) } catch { /* */ }
+    applyI18n()
+  }
+  document.querySelector('#langToggle')?.addEventListener('click', () => setLang(lang === 'ko' ? 'en' : 'ko'))
+  applyI18n()
 
   const rects = new Map<number, Rect>()
   const images = new Map<number, HTMLImageElement>()
@@ -179,7 +235,7 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
   function pushGeo(lat?: number, lon?: number): void {
     const [glat, glon] = lat != null && lon != null ? [lat, lon] : geoParts()
     window.dispatchEvent(new CustomEvent('appLocationChanged', { detail: { latitude: glat, longitude: glon, speed: 0 } }))
-    pane('event', `appLocationChanged ${glat},${glon} (1회)`)
+    pane('event', `appLocationChanged ${glat},${glon} ${t('once')}`)
   }
 
   // IMU mock: 켜면 Sys IMU_DATA 이벤트 저빈도 방출. eventSource=1.
@@ -223,7 +279,7 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
         if (tb) { tb.content = String((data as { content?: string }).content ?? ''); redraw() }
         return true
       }
-      case 'shutDownPageContainer': pane('info', 'shutDown(앱 종료 요청)'); return true
+      case 'shutDownPageContainer': pane('info', t('shutdown')); return true
       // 입력 mock — 공식 시뮬 미지원 6기능(SDK.md 능력 매트릭스)을 하니스가 구현
       case 'getAppLocation': { const [lat, lon] = geoParts(); return { latitude: lat, longitude: lon, speed: 0 } }
       case 'startAppLocationUpdates': return true  // GPS 자동주입 안 함(opt-in) — 주입은 pushGeo/버튼으로 1회씩.
@@ -236,7 +292,7 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
         return { path: 'harness:mock-image.png', bytes: [137, 80, 78, 71, 13, 10, 26, 10] }
       default:
         if (opts.onUnknownMethod) return opts.onUnknownMethod(method, data)
-        pane('info', 'unknown method: ' + method); return null
+        pane('info', t('unknownMethod') + method); return null
     }
   }
 
@@ -250,7 +306,7 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
         return handle(p.method, p.data ?? {})
       }
       // 비-evenAppMessage 채널(listen_even_app_data 등 구독/기타)도 통합 진단 위해 로그에 표기
-      pane('send', `${name} (기타 채널)` + (p.method ? ` method=${p.method}` : ''))
+      pane('send', name + t('otherChannel') + (p.method ? ` method=${p.method}` : ''))
       return Promise.resolve(true)
     },
     // 일부 위젯 래퍼는 callHandler 대신 postMessage 로 evenAppMessage 를 보낸다(fire-and-forget).
@@ -264,7 +320,7 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
         void handle(p.method, p.data ?? {})
         return
       }
-      pane('info', 'postMessage(비표준 페이로드 무시): ' + String(payload).slice(0, 80))
+      pane('info', t('pmIgnored') + String(payload).slice(0, 80))
     },
   }
   ;(window as unknown as { __EVEN_HUB_APP_ID__: string }).__EVEN_HUB_APP_ID__ = opts.appId ?? 'harness'
@@ -276,9 +332,9 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
   bind(btn.up, () => textEvt(1))     // SCROLL_TOP = 이전
   bind(btn.down, () => textEvt(2))   // SCROLL_BOTTOM = 다음
   bind(btn.double, () => sysEvt(3))  // DOUBLE_CLICK
-  bind(btn.geo, () => { const [lat, lon] = geoParts(); pane('info', `GPS 주입 ${lat},${lon}`); pushGeo() })
+  bind(btn.geo, () => { const [lat, lon] = geoParts(); pane('info', `${t('gpsInjected')} ${lat},${lon}`); pushGeo() })
 
-  pane('info', 'harness ready — 위젯 로드 중…')
+  pane('info', t('ready'))
   // ready 이벤트(리스너 등록 타이밍 대비 몇 회 재발) + 위젯 로드
   const ready = () => window.dispatchEvent(new CustomEvent('evenAppBridgeReady', { detail: {} }))
   ready()
@@ -286,5 +342,5 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
   await opts.widgetEntry()
   for (let i = 1; i <= 5; i++) setTimeout(ready, i * 150)
 
-  return { fireEvent, textEvent: textEvt, sysEvent: sysEvt, pushGeo, redraw }
+  return { fireEvent, textEvent: textEvt, sysEvent: sysEvt, pushGeo, redraw, setLang }
 }

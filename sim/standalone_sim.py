@@ -29,6 +29,20 @@ from PyQt6.QtWidgets import (
 
 _LVL = {0: "LOG", 1: "WARN", 2: "ERR"}
 
+# UI 언어 사전 (--lang ko|en)
+I18N = {
+    "ko": {
+        "glasses_view": "안경 뷰 (Dev 하니스)", "settings_view": "앱 설정 뷰 (WebView)",
+        "glasses_console": "안경 콘솔", "settings_console": "앱 설정 콘솔",
+        "reload": "↻ 새로고침", "devtools": "DevTools", "title": "Even G2 Standalone Simulator",
+    },
+    "en": {
+        "glasses_view": "Glasses View (Dev Harness)", "settings_view": "App Settings View (WebView)",
+        "glasses_console": "Glasses Console", "settings_console": "Settings Console",
+        "reload": "↻ Reload", "devtools": "DevTools", "title": "Even G2 Standalone Simulator",
+    },
+}
+
 QSS = """
 QMainWindow { background: #16211b; }
 QMainWindow::separator { background: #2c4638; width: 4px; height: 4px; }
@@ -82,7 +96,7 @@ def _dock(win: QMainWindow, title: str, widget: QWidget, area) -> QDockWidget:
     return d
 
 
-def _view_panel(url: str, log: QPlainTextEdit) -> QWidget:
+def _view_panel(url: str, log: QPlainTextEdit, tr: dict) -> QWidget:
     """웹뷰 + 상단 버튼바(새로고침/DevTools) 패널. 콘솔 캡처는 log 로."""
     wrap = QWidget()
     wrap.setObjectName("viewwrap")
@@ -92,8 +106,8 @@ def _view_panel(url: str, log: QPlainTextEdit) -> QWidget:
 
     bar = QHBoxLayout()
     bar.setSpacing(6)
-    reload_btn = QPushButton("↻ 새로고침")
-    dev_btn = QPushButton("DevTools")
+    reload_btn = QPushButton(tr["reload"])
+    dev_btn = QPushButton(tr["devtools"])
     bar.addWidget(reload_btn)
     bar.addWidget(dev_btn)
     bar.addStretch(1)
@@ -123,12 +137,15 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--harness", default="http://127.0.0.1:5173/harness/")
     ap.add_argument("--settings", default="http://127.0.0.1:8099/settings")
+    ap.add_argument("--lang", choices=["ko", "en"], default="ko",
+                    help="UI language for dock titles/buttons (ko|en)")
     args = ap.parse_args()
+    tr = I18N[args.lang]
 
     app = QApplication(sys.argv)
     app.setStyleSheet(QSS)
     win = QMainWindow()
-    win.setWindowTitle("Even G2 Standalone Simulator")
+    win.setWindowTitle(tr["title"])
     win.setDockNestingEnabled(True)
     win.resize(1360, 820)
 
@@ -138,10 +155,10 @@ def main() -> int:
     g_log = QPlainTextEdit(); g_log.setReadOnly(True); g_log.setMaximumBlockCount(1000)
     s_log = QPlainTextEdit(); s_log.setReadOnly(True); s_log.setMaximumBlockCount(1000)
 
-    g_view = _dock(win, "안경 뷰 (Dev 하니스)", _view_panel(args.harness, g_log), L)
-    s_view = _dock(win, "앱 설정 뷰 (WebView)", _view_panel(args.settings, s_log), R)
-    g_console = _dock(win, "안경 콘솔", g_log, L)
-    s_console = _dock(win, "앱 설정 콘솔", s_log, R)
+    g_view = _dock(win, tr["glasses_view"], _view_panel(args.harness, g_log, tr), L)
+    s_view = _dock(win, tr["settings_view"], _view_panel(args.settings, s_log, tr), R)
+    g_console = _dock(win, tr["glasses_console"], g_log, L)
+    s_console = _dock(win, tr["settings_console"], s_log, R)
 
     # 뷰 아래에 콘솔 배치(세로 분할)
     win.splitDockWidget(g_view, g_console, Qt.Orientation.Vertical)

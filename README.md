@@ -93,6 +93,7 @@ Even Hub 위젯은 폰 Even 앱의 Flutter WebView 에서 실행되며, 호스�
 | 옵션 | 기본값 | 설명 |
 |---|---|---|
 | `widgetEntry` | (필수) | 위젯 엔트리 로더. mock 브릿지 설치 후 호출. `() => import('/src/main.ts')` |
+| `lang` | 자동감지 | UI/로그 언어 `'ko'\|'en'`. 기본 = localStorage(`h_lang`) → `navigator.language`. 헤더 `#langToggle` 버튼으로 즉시 전환·영속. PyQt sim 은 `--lang ko\|en` |
 | `glass` | `'#glass'` | 안경 캔버스(576×288). 셀렉터 또는 요소 |
 | `log` | `'#log'` | 로그 패널. `null` 이면 로그 UI 없이 동작 |
 | `geoInput` | `'#geo'` | GPS 좌표 입력 필드(`"lat,lon"`) |

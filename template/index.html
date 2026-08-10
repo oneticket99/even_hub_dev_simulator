@@ -38,29 +38,30 @@
   <body>
     <header>
       <b>Even G2 Dev Harness</b>
-      <span class="hint">위젯 무수정 구동 · 상단=안경 렌더(근사) · 하단=실시간 로그 · F12=DevTools</span>
+      <span class="hint" data-i18n="hint">위젯 무수정 구동 · 상단=안경 렌더(근사) · 하단=실시간 로그 · F12=DevTools</span>
+      <button id="langToggle" style="margin-left:auto" title="Language">EN</button>
     </header>
     <div class="top">
       <div class="glasswrap"><canvas id="glass" width="576" height="288"></canvas></div>
       <div class="panel">
         <div class="row">
-          <button id="bClick">● Click</button>
-          <button id="bUp">▲ Up (이전)</button>
-          <button id="bDown">▼ Down (다음)</button>
-          <button id="bDouble">◎ Double (뒤로/종료)</button>
+          <button id="bClick" data-i18n="btnClick">● Click</button>
+          <button id="bUp" data-i18n="btnUp">▲ Up (이전)</button>
+          <button id="bDown" data-i18n="btnDown">▼ Down (다음)</button>
+          <button id="bDouble" data-i18n="btnDouble">◎ Double (뒤로/종료)</button>
         </div>
         <div class="row">
           <input id="geo" value="37.5665,126.9780" title="lat,lon" />
-          <button id="bGeo">📍 GPS 주입</button>
+          <button id="bGeo" data-i18n="btnGeo">📍 GPS 주입</button>
         </div>
-        <div class="hint">링 조작 대응: Up/Down=슬라이드, Click=클릭, Double=더블탭</div>
+        <div class="hint" data-i18n="ringHint">링 조작 대응: Up/Down=슬라이드, Click=클릭, Double=더블탭</div>
       </div>
     </div>
     <div class="logwrap">
       <div class="bar">
-        <span>실시간 디버그 로그</span>
+        <span data-i18n="logTitle">실시간 디버그 로그</span>
         <span class="fbox">
-          <input id="logFilter" placeholder="필터 (텍스트 포함)" />
+          <input id="logFilter" data-i18n-ph="filterPh" placeholder="필터 (텍스트 포함)" />
           <button class="kbtn send" data-logkind="send">SEND</button>
           <button class="kbtn recv" data-logkind="recv">RECV</button>
           <button class="kbtn event" data-logkind="event">EVENT</button>

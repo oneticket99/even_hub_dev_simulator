@@ -1,0 +1,34 @@
+{
+  "name": "evenhub-dev-harness",
+  "version": "0.1.0",
+  "description": "Even Hub 위젯용 범용 Dev 하니스 — mock EvenAppBridge + 캔버스 렌더러(근사) + 헤드리스 automation 서버 + PyQt 스탠드얼론 뷰 + 와이어 캡처. 위젯을 무수정으로 브라우저에서 구동한다.",
+  "type": "module",
+  "main": "src/mockbridge.ts",
+  "exports": {
+    ".": "./src/mockbridge.ts",
+    "./mockbridge": "./src/mockbridge.ts",
+    "./serve": "./serve.mjs"
+  },
+  "files": [
+    "src",
+    "serve.mjs",
+    "wirecapture.js",
+    "sim",
+    "template",
+    "README.md",
+    "SDK.md"
+  ],
+  "dependencies": {
+    "playwright-core": "^1.62.1"
+  },
+  "keywords": [
+    "even-realities",
+    "even-hub",
+    "g2",
+    "smart-glasses",
+    "simulator",
+    "harness",
+    "mock"
+  ],
+  "license": "MIT"
+}

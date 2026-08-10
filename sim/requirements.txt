@@ -1,0 +1,3 @@
+# Even G2 스탠드얼론 시뮬(PyQt) 의존성. 설치: pip install -r sim/requirements.txt
+PyQt6>=6.6
+PyQt6-WebEngine>=6.6

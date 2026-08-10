@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- evenhub-dev-harness 템플릿 — 프로젝트의 하니스 페이지(예: <위젯루트>/harness/index.html)로 복사해 사용.
+     아래 <script> 의 harness-main.ts 경로와, harness-main.ts 안의 widgetEntry 만 프로젝트에 맞게 바꾸면 된다. -->
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Even G2 — Dev Harness</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #0b0f0d; color: #cfe; font: 13px/1.5 system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; }
+      header { padding: 6px 12px; background: #121a16; border-bottom: 1px solid #1f2d26; display: flex; gap: 12px; align-items: center; }
+      header b { color: #39ff88; }
+      header .hint { color: #6b8; font-size: 12px; }
+      .top { flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 12px; align-items: flex-start; }
+      .glasswrap { background: #000; border: 1px solid #223; border-radius: 10px; padding: 6px; }
+      #glass { display: block; width: 576px; height: 288px; image-rendering: pixelated; }
+      .panel { display: flex; flex-direction: column; gap: 8px; width: 588px; max-width: 100%; }
+      .panel .row { display: flex; gap: 6px; flex-wrap: wrap; }
+      button { background: #16241d; color: #cfe; border: 1px solid #2c4638; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+      button:hover { background: #1e3529; }
+      input { background: #0d1512; color: #cfe; border: 1px solid #2c4638; border-radius: 6px; padding: 6px 8px; font: inherit; width: 180px; }
+      .logwrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid #1f2d26; }
+      .logwrap .bar { padding: 4px 12px; background: #121a16; color: #6b8; font-size: 12px; display: flex; justify-content: space-between; }
+      #log { flex: 1 1 auto; overflow: auto; padding: 6px 12px; font: 12px/1.45 "SF Mono", "Menlo", monospace; }
+      .ln { white-space: pre; }
+      .ln.send { color: #7cf; }
+      .ln.recv { color: #9e9; }
+      .ln.event { color: #fd7; }
+      .ln.info { color: #9ab; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <b>Even G2 Dev Harness</b>
+      <span class="hint">위젯 무수정 구동 · 상단=안경 렌더(근사) · 하단=실시간 로그 · F12=DevTools</span>
+    </header>
+    <div class="top">
+      <div class="glasswrap"><canvas id="glass" width="576" height="288"></canvas></div>
+      <div class="panel">
+        <div class="row">
+          <button id="bClick">● Click</button>
+          <button id="bUp">▲ Up (이전)</button>
+          <button id="bDown">▼ Down (다음)</button>
+          <button id="bDouble">◎ Double (뒤로/종료)</button>
+        </div>
+        <div class="row">
+          <input id="geo" value="37.5665,126.9780" title="lat,lon" />
+          <button id="bGeo">📍 GPS 주입</button>
+        </div>
+        <div class="hint">링 조작 대응: Up/Down=슬라이드, Click=클릭, Double=더블탭</div>
+      </div>
+    </div>
+    <div class="logwrap">
+      <div class="bar"><span>실시간 디버그 로그 (send/recv/event/info)</span><span>evenhub-dev-harness</span></div>
+      <div id="log"></div>
+    </div>
+    <!-- 프로젝트에 맞게 경로 조정 -->
+    <script type="module" src="./harness-main.ts"></script>
+  </body>
+</html>

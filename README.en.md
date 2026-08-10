@@ -41,6 +41,8 @@ The harness ships with the **log and debug tooling you need for widget developme
 
 - **Live bridge log panel**: streams every Widget↔Host exchange, color-coded by direction and
   kind (`SEND` bridge calls / `RECV` host responses / `EVENT` injected events / `INFO`).
+  **Chrome-console-style filtering** built in — substring text filter (`#logFilter`) plus
+  per-kind toggles (SEND/RECV/EVENT/INFO buttons).
 - **console.log mirror**: mirrors the widget's `console.log` output into the log panel —
   solves the "can't open the phone WebView console" problem in the browser.
 - **F12 DevTools**: the harness is a web page, so Chrome DevTools (breakpoints, network,
@@ -127,7 +129,21 @@ Same contract as the official `evenhub-simulator --automation-port`:
 | `GET /api/ping` | `"pong"` |
 | `GET /api/console[?since_id=N]` | `{entries:[{id,level,message,ts}]}` — page console/error buffer (1000) |
 | `GET /api/screenshot/glasses` | Glasses canvas PNG (`--glass` selector, default `#glass`). `?stats=1` → `{litPixels,…}` JSON |
+| `GET /api/screenshot/webview` | Full-page PNG (including phone-side UI) |
 | `POST /api/input {"action":...}` | `click` \| `up` \| `down` \| `double_click` \| `gps` (harness-only) |
+| `POST /api/dom {selector, action, value?}` | Drive phone-side DOM: `click`/`fill`/`submit`. evaluate-based — works on hidden `#app` elements too |
+| `GET /api/dom/text?selector=` | `{exists, visible, text, value}` — for asserting phone-UI state |
+
+**Automating phone-UI flows**: if the widget requires phone-side DOM interaction (e.g. type a
+destination → submit → pick a candidate), ring inputs alone cannot drive the flow → inject
+input/clicks from your script via `/api/dom`:
+
+```bash
+curl -X POST :9899/api/dom -d '{"selector":"#dest-input","action":"fill","value":"Seoul Station"}'
+curl -X POST :9899/api/dom -d '{"selector":"#dest-input","action":"submit"}'
+curl -X POST :9899/api/dom -d '{"selector":".candidate:first-child","action":"click"}'
+curl ":9899/api/dom/text?selector=.route-status"   # assert state
+```
 
 Flags: `--widget <harness URL>` `--port <port>` `--glass <canvas selector>`.
 
@@ -150,6 +166,8 @@ Flags: `--widget <harness URL>` `--port <port>` `--glass <canvas selector>`.
 | serve.mjs fails to start after a local-path install | `npm install <local path>` symlinks and skips deps (playwright-core missing) | Prefer `npm install github:oneticket99/even_hub_dev_simulator`, or add `npm i playwright-core` in the consumer (the cwd fallback resolves it) |
 | Screenshot API hangs / times out | Page in a non-renderable state (widget exception, …) | serve fails fast after an explicit 10s timeout with a 500+reason — check `/api/console` for widget errors first |
 | Smoke passes on a blank screen | Judging on HTTP 200 only | Apply the **smoke-judging guide** above (`?stats=1` lit-pixel floor + markers + negative check) |
+| litPixels>0 passes on the start page alone (a "not-started" state in disguise) | Widget needs a phone-UI flow (input/submit) before real HUD content appears | Drive the flow via `/api/dom` first, then judge. Raise the floor to real-screen levels and also assert `/api/console` state markers + `/api/dom/text` |
+| Repeated favicon 404 in the console | Harness page has no favicon | Template now includes `<link rel="icon" href="data:,">` |
 
 ## Standalone desktop view (PyQt)
 

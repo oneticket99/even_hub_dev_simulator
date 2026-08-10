@@ -39,6 +39,7 @@ harness-kit/
 
 - **실시간 브릿지 로그 패널**: 모든 Widget↔Host 통신을 방향·종류별 색상으로 스트리밍
   (`SEND` 브릿지 호출 / `RECV` 호스트 응답 / `EVENT` 주입 이벤트 / `INFO` 정보).
+  **크롬 콘솔식 필터** 내장 — 텍스트 부분일치(`#logFilter`) + 종류별 토글(SEND/RECV/EVENT/INFO 버튼).
 - **console.log 미러**: 위젯의 `console.log` 출력을 로그 패널로 미러 —
   폰 WebView 콘솔을 못 여는 문제를 브라우저에서 해소.
 - **F12 DevTools**: 하니스는 웹페이지라 크롬 DevTools(중단점·네트워크·콘솔) 기본 제공.
@@ -117,7 +118,20 @@ Even Hub 위젯은 폰 Even 앱의 Flutter WebView 에서 실행되며, 호스�
 | `GET /api/ping` | `"pong"` |
 | `GET /api/console[?since_id=N]` | `{entries:[{id,level,message,ts}]}` — 페이지 콘솔/에러 버퍼(1000) |
 | `GET /api/screenshot/glasses` | 안경 캔버스 PNG (`--glass` 셀렉터, 기본 `#glass`). `?stats=1` → `{litPixels,…}` JSON |
+| `GET /api/screenshot/webview` | 전체 페이지 PNG(폰측 UI 포함) |
 | `POST /api/input {"action":...}` | `click` \| `up` \| `down` \| `double_click` \| `gps`(하니스 전용) |
+| `POST /api/dom {selector, action, value?}` | 폰측 DOM 구동: `click`/`fill`/`submit`. evaluate 기반 — 숨김 `#app` 요소에도 동작 |
+| `GET /api/dom/text?selector=` | `{exists, visible, text, value}` — 폰 UI 상태 assert 용 |
+
+**폰 UI 플로우 자동화**: 위젯이 폰측 DOM 상호작용(예: 목적지 입력→제출→후보 선택)을 요구하면
+링 입력만으로는 흐름을 못 태운다 → `/api/dom` 으로 스크립트에서 입력·클릭을 주입:
+
+```bash
+curl -X POST :9899/api/dom -d '{"selector":"#dest-input","action":"fill","value":"서울역"}'
+curl -X POST :9899/api/dom -d '{"selector":"#dest-input","action":"submit"}'
+curl -X POST :9899/api/dom -d '{"selector":".candidate:first-child","action":"click"}'
+curl ":9899/api/dom/text?selector=.route-status"   # 상태 assert
+```
 
 플래그: `--widget <하니스 URL>` `--port <포트>` `--glass <캔버스 셀렉터>`.
 
@@ -139,6 +153,8 @@ Even Hub 위젯은 폰 Even 앱의 Flutter WebView 에서 실행되며, 호스�
 | 로컬경로 설치 후 serve.mjs 기동 실패 | `npm install <로컬경로>` 는 심링크 — 의존성(playwright-core) 미설치 | `npm install github:oneticket99/even_hub_dev_simulator`(권장) 또는 소비 프로젝트에 `npm i playwright-core` 추가(cwd 폴백이 해석) |
 | 스크린샷 API 무한 대기/타임아웃 | 페이지가 렌더 불가 상태(위젯 예외 등) | serve 는 10s 명시 타임아웃 후 500+사유 반환 — `/api/console` 로 위젯 에러부터 확인 |
 | smoke 가 빈 화면인데 PASS | HTTP 200 만 판정 | 위 **smoke 판정 가이드** 적용(`?stats=1` 발광 픽셀 하한 + 마커 + 역검증) |
+| 시작 페이지만 발광해도 litPixels>0 통과("시작 안 된 상태" 위장) | 위젯이 폰 UI 플로우(입력·제출)를 거쳐야 실 HUD 진입 | `/api/dom` 으로 플로우를 태운 뒤 판정. 하한선을 실화면 기준으로 상향 + `/api/console` 상태 마커·`/api/dom/text` 를 함께 assert |
+| 콘솔에 favicon 404 소음 | 하니스 페이지 favicon 미지정 | 템플릿에 `<link rel="icon" href="data:,">` 포함(최신 템플릿) |
 
 ## 스탠드얼론 데스크톱 뷰 (PyQt)
 

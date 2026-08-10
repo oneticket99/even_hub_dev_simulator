@@ -6,8 +6,12 @@
 // API 패리티:
 //   GET  /api/ping                → "pong"
 //   GET  /api/console[?since_id]  → {entries:[{id,level,message,ts}]}
-//   GET  /api/screenshot/glasses  → 안경 캔버스 PNG (--glass 셀렉터, 기본 #glass)
+//   GET  /api/screenshot/glasses  → 안경 캔버스 PNG (--glass 셀렉터, 기본 #glass). ?stats=1 → 발광픽셀 JSON
+//   GET  /api/screenshot/webview  → 전체 페이지 PNG (폰측 UI 포함 — 공식 시뮬 패리티)
 //   POST /api/input {action}      → click|up|down|double_click|gps → 하니스 버튼 클릭
+// 폰측 DOM 구동(위젯이 폰 UI 플로우를 요구할 때 — 목적지 입력·제출 등):
+//   POST /api/dom {selector, action:'click'|'fill'|'submit', value?}  → evaluate 기반(숨김 요소에도 동작)
+//   GET  /api/dom/text?selector=  → {exists, visible, text, value}
 //
 // 사용:
 //   node serve.mjs --widget http://127.0.0.1:5173/harness/ --port 9899 [--glass "#glass"]
@@ -94,6 +98,61 @@ const server = http.createServer(async (req, res) => {
       const png = await el.screenshot({ type: 'png', timeout: 10_000 })
       res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': png.length })
       return res.end(png)
+    }
+
+    if (url.pathname === '/api/screenshot/webview') {
+      const png = await page.screenshot({ type: 'png', timeout: 10_000 })
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': png.length })
+      return res.end(png)
+    }
+
+    // 폰측 DOM 구동(F-11): 위젯의 폰 UI 플로우(입력·제출·후보 클릭)를 automation 으로 태운다.
+    // page.evaluate 직접 조작이라 display:none(#app 숨김) 요소에도 동작. 상태 확인은 /api/dom/text.
+    if (url.pathname === '/api/dom' && req.method === 'POST') {
+      let raw = ''
+      for await (const chunk of req) raw += chunk
+      let body = {}
+      try { body = JSON.parse(raw || '{}') } catch { /* */ }
+      const { selector, action, value } = body
+      if (!selector || !action) return sendJson(res, { error: 'selector, action 필수' }, 400)
+      const result = await page.evaluate(({ selector, action, value }) => {
+        const el = document.querySelector(selector)
+        if (!el) return { error: `not found: ${selector}` }
+        if (action === 'click') { el.click(); return { ok: true } }
+        if (action === 'fill') {
+          el.value = value ?? ''
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+          el.dispatchEvent(new Event('change', { bubbles: true }))
+          return { ok: true }
+        }
+        if (action === 'submit') {
+          const form = el.closest('form') ?? (el.tagName === 'FORM' ? el : null)
+          if (form) { form.requestSubmit ? form.requestSubmit() : form.submit(); return { ok: true } }
+          // form 없으면 Enter 키 이벤트로 대체(입력창 keydown 핸들러 위젯 대응)
+          el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+          el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }))
+          return { ok: true, note: 'no form — Enter key dispatched' }
+        }
+        return { error: `unknown action: ${action}` }
+      }, { selector, action, value })
+      return sendJson(res, result, result.error ? 400 : 200)
+    }
+
+    if (url.pathname === '/api/dom/text') {
+      const selector = url.searchParams.get('selector')
+      if (!selector) return sendJson(res, { error: 'selector 필수' }, 400)
+      const info = await page.evaluate((sel) => {
+        const el = document.querySelector(sel)
+        if (!el) return { exists: false }
+        const st = getComputedStyle(el)
+        return {
+          exists: true,
+          visible: st.display !== 'none' && st.visibility !== 'hidden',
+          text: (el.textContent ?? '').slice(0, 2000),
+          value: 'value' in el ? String(el.value).slice(0, 500) : undefined,
+        }
+      }, selector)
+      return sendJson(res, info)
     }
 
     if (url.pathname === '/api/input' && req.method === 'POST') {

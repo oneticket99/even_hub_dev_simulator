@@ -4,6 +4,7 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" href="data:," />
     <title>Even G2 — Dev Harness</title>
     <style>
       * { box-sizing: border-box; }
@@ -20,7 +21,12 @@
       button:hover { background: #1e3529; }
       input { background: #0d1512; color: #cfe; border: 1px solid #2c4638; border-radius: 6px; padding: 6px 8px; font: inherit; width: 180px; }
       .logwrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid #1f2d26; }
-      .logwrap .bar { padding: 4px 12px; background: #121a16; color: #6b8; font-size: 12px; display: flex; justify-content: space-between; }
+      .logwrap .bar { padding: 4px 12px; background: #121a16; color: #6b8; font-size: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+      .fbox { display: flex; gap: 4px; align-items: center; }
+      .fbox input { width: 160px; padding: 2px 6px; font-size: 12px; }
+      .kbtn { padding: 2px 8px; font-size: 11px; border-radius: 4px; }
+      .kbtn.send { color: #7cf; } .kbtn.recv { color: #9e9; } .kbtn.event { color: #fd7; } .kbtn.info { color: #9ab; }
+      .kbtn.off { opacity: 0.3; }
       #log { flex: 1 1 auto; overflow: auto; padding: 6px 12px; font: 12px/1.45 "SF Mono", "Menlo", monospace; }
       .ln { white-space: pre; }
       .ln.send { color: #7cf; }
@@ -51,7 +57,16 @@
       </div>
     </div>
     <div class="logwrap">
-      <div class="bar"><span>실시간 디버그 로그 (send/recv/event/info)</span><span>evenhub-dev-harness</span></div>
+      <div class="bar">
+        <span>실시간 디버그 로그</span>
+        <span class="fbox">
+          <input id="logFilter" placeholder="필터 (텍스트 포함)" />
+          <button class="kbtn send" data-logkind="send">SEND</button>
+          <button class="kbtn recv" data-logkind="recv">RECV</button>
+          <button class="kbtn event" data-logkind="event">EVENT</button>
+          <button class="kbtn info" data-logkind="info">INFO</button>
+        </span>
+      </div>
       <div id="log"></div>
     </div>
     <!-- 위젯 폰측 UI 마운트 루트. 위젯이 #app(등)에 마운트해야 동작하는 구조면 이 요소가

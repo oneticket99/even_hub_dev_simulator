@@ -77,12 +77,38 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
   let listBox: ListBox | null = null
 
   // ── 로그 패널 ─────────────────────────────────────────────
+  // 필터(크롬 콘솔 스타일): #logFilter 텍스트 부분일치 + [data-logkind] 종류 토글 버튼.
+  // 해당 요소가 페이지에 없으면 자동 비활성(전체 표시) — 템플릿이 기본 제공.
+  const filterEl = document.querySelector<HTMLInputElement>('#logFilter')
+  const kindOn: Record<string, boolean> = { send: true, recv: true, event: true, info: true }
+  function lineVisible(kind: string, text: string): boolean {
+    const q = (filterEl?.value ?? '').trim().toLowerCase()
+    return (kindOn[kind] ?? true) && (!q || text.toLowerCase().includes(q))
+  }
+  function applyFilter(): void {
+    if (!logEl) return
+    for (const ln of Array.from(logEl.children) as HTMLElement[]) {
+      const kind = ln.className.split(' ')[1] ?? ''
+      ln.style.display = lineVisible(kind, ln.textContent ?? '') ? '' : 'none'
+    }
+    logEl.scrollTop = logEl.scrollHeight
+  }
+  filterEl?.addEventListener('input', applyFilter)
+  for (const btn of Array.from(document.querySelectorAll<HTMLElement>('[data-logkind]'))) {
+    btn.addEventListener('click', () => {
+      const k = btn.dataset.logkind ?? ''
+      kindOn[k] = !(kindOn[k] ?? true)
+      btn.classList.toggle('off', !kindOn[k])
+      applyFilter()
+    })
+  }
   function pane(kind: 'send' | 'recv' | 'event' | 'info', msg: string): void {
     if (!logEl) return
     const line = document.createElement('div')
     line.className = 'ln ' + kind
     const ts = new Date().toISOString().slice(11, 19)
     line.textContent = `${ts}  ${kind.toUpperCase().padEnd(5)}  ${msg}`
+    if (!lineVisible(kind, line.textContent)) line.style.display = 'none'
     logEl.appendChild(line)
     while (logEl.childElementCount > 500) logEl.removeChild(logEl.firstChild!)
     logEl.scrollTop = logEl.scrollHeight

@@ -116,12 +116,29 @@ Even Hub 위젯은 폰 Even 앱의 Flutter WebView 에서 실행되며, 호스�
 |---|---|
 | `GET /api/ping` | `"pong"` |
 | `GET /api/console[?since_id=N]` | `{entries:[{id,level,message,ts}]}` — 페이지 콘솔/에러 버퍼(1000) |
-| `GET /api/screenshot/glasses` | 안경 캔버스 PNG (`--glass` 셀렉터, 기본 `#glass`) |
+| `GET /api/screenshot/glasses` | 안경 캔버스 PNG (`--glass` 셀렉터, 기본 `#glass`). `?stats=1` → `{litPixels,…}` JSON |
 | `POST /api/input {"action":...}` | `click` \| `up` \| `down` \| `double_click` \| `gps`(하니스 전용) |
 
 플래그: `--widget <하니스 URL>` `--port <포트>` `--glass <캔버스 셀렉터>`.
-E2E 판정 관례: 스크린샷의 발광 픽셀 유무 + 콘솔 로그 마커 문자열 assert
-(위젯이 `console.log` 로 `ready`/상태 마커를 찍게 해두면 러너가 그것을 기다린다).
+
+**smoke 판정 가이드(중요)**: 빈 캔버스도 스크린샷이 HTTP 200/정상 PNG 로 나온다 —
+**200 판정은 거짓양성**. 판정은 반드시:
+1. `GET /api/screenshot/glasses?stats=1` → `{litPixels, totalPixels}` 의 **발광 픽셀 하한선**
+   (예: `litPixels > 500`)으로,
+2. `/api/console` 의 위젯 `ready`/상태 **마커 문자열** assert 로,
+3. 가능하면 **역검증**(위젯 마운트 요소 제거 등 고의 실패 조건에서 smoke 가 FAIL 하는지)까지.
+
+## 트러블슈팅 (타 프로젝트 통합 시 실측 사례)
+
+| 증상 | 원인 | 해법 |
+|---|---|---|
+| 위젯이 조용히 아무것도 안 함(브릿지 호출 0) | 위젯이 폰측 UI 마운트 루트(`#app` 등)를 요구하는데 하니스 페이지에 없음 | 템플릿의 숨김 `<div id="app">` 유지/추가. 다른 id 면 그에 맞출 것 |
+| SPA 라우터 not-found → 위젯 미마운트 | 라우터가 `/harness/` 경로를 모름 | 부트스트랩에서 `history.replaceState(null,'','/')`(템플릿 주석) 또는 라우터에 경로 등록 |
+| `postMessage: Flutter handler not available` | 위젯 래퍼가 `callHandler` 외에 `flutter_inappwebview.postMessage` 사용 | kit 이 postMessage 도 수용(fire-and-forget). 최신 kit 로 갱신. 반환값 필요한 호출은 callHandler 필수 |
+| Click/Up/Down 버튼 무반응 | 캡처 컨테이너 불일치(kit 기본 `11/'cap'` vs 위젯 자체 값) | `startHarness({ capture: { containerID, containerName } })` 로 위젯 값과 일치 |
+| 로컬경로 설치 후 serve.mjs 기동 실패 | `npm install <로컬경로>` 는 심링크 — 의존성(playwright-core) 미설치 | `npm install github:oneticket99/even_hub_dev_simulator`(권장) 또는 소비 프로젝트에 `npm i playwright-core` 추가(cwd 폴백이 해석) |
+| 스크린샷 API 무한 대기/타임아웃 | 페이지가 렌더 불가 상태(위젯 예외 등) | serve 는 10s 명시 타임아웃 후 500+사유 반환 — `/api/console` 로 위젯 에러부터 확인 |
+| smoke 가 빈 화면인데 PASS | HTTP 200 만 판정 | 위 **smoke 판정 가이드** 적용(`?stats=1` 발광 픽셀 하한 + 마커 + 역검증) |
 
 ## 스탠드얼론 데스크톱 뷰 (PyQt)
 

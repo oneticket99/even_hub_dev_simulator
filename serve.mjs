@@ -75,8 +75,23 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === '/api/screenshot/glasses') {
+      // ?stats=1 → 발광 픽셀 카운트 JSON. smoke 판정은 HTTP 200 이 아니라 이 하한선으로 할 것
+      // (빈 캔버스도 PNG 200 이 나오므로 200 판정은 거짓양성).
+      if (url.searchParams.get('stats') === '1') {
+        const stats = await page.evaluate((sel) => {
+          const c = document.querySelector(sel)
+          if (!c) return null
+          const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+          let lit = 0
+          for (let i = 0; i < d.length; i += 4) if (d[i] || d[i + 1] || d[i + 2]) lit++
+          return { width: c.width, height: c.height, litPixels: lit, totalPixels: c.width * c.height }
+        }, GLASS)
+        if (!stats) return sendJson(res, { error: `canvas not found: ${GLASS}` }, 500)
+        return sendJson(res, stats)
+      }
       const el = page.locator(GLASS)
-      const png = await el.screenshot({ type: 'png' })
+      // 명시 타임아웃: 위젯 상태와 무관하게 빨리·명확히 실패(무한 대기 방지)
+      const png = await el.screenshot({ type: 'png', timeout: 10_000 })
       res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': png.length })
       return res.end(png)
     }

@@ -126,12 +126,30 @@ Same contract as the official `evenhub-simulator --automation-port`:
 |---|---|
 | `GET /api/ping` | `"pong"` |
 | `GET /api/console[?since_id=N]` | `{entries:[{id,level,message,ts}]}` — page console/error buffer (1000) |
-| `GET /api/screenshot/glasses` | Glasses canvas PNG (`--glass` selector, default `#glass`) |
+| `GET /api/screenshot/glasses` | Glasses canvas PNG (`--glass` selector, default `#glass`). `?stats=1` → `{litPixels,…}` JSON |
 | `POST /api/input {"action":...}` | `click` \| `up` \| `down` \| `double_click` \| `gps` (harness-only) |
 
 Flags: `--widget <harness URL>` `--port <port>` `--glass <canvas selector>`.
-E2E judging convention: assert lit pixels in the screenshot + marker strings in the console
-log (have your widget `console.log` a `ready`/state marker for the runner to wait on).
+
+**Smoke-judging guide (important)**: an empty canvas still returns HTTP 200 with a valid PNG —
+**judging on 200 is a false positive**. Always judge by:
+1. `GET /api/screenshot/glasses?stats=1` → `{litPixels, totalPixels}` with a **lit-pixel floor**
+   (e.g. `litPixels > 500`),
+2. asserting a widget `ready`/state **marker string** via `/api/console`,
+3. ideally a **negative check** too (the smoke must FAIL under a deliberate break, e.g.
+   removing the widget's mount element).
+
+## Troubleshooting (measured while integrating real projects)
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Widget silently does nothing (zero bridge calls) | Widget requires a phone-side mount root (`#app`, …) missing from the harness page | Keep/add the template's hidden `<div id="app">`; match the id your widget uses |
+| SPA router not-found → widget never mounts | Router doesn't know the `/harness/` path | Uncomment `history.replaceState(null,'','/')` in the bootstrap template, or register the route |
+| `postMessage: Flutter handler not available` | Widget wrapper uses `flutter_inappwebview.postMessage` besides `callHandler` | The kit accepts postMessage too (fire-and-forget). Update to the latest kit. Calls needing a return value must use callHandler |
+| Click/Up/Down buttons do nothing | Capture-container mismatch (kit default `11/'cap'` vs your widget's values) | Match via `startHarness({ capture: { containerID, containerName } })` |
+| serve.mjs fails to start after a local-path install | `npm install <local path>` symlinks and skips deps (playwright-core missing) | Prefer `npm install github:oneticket99/even_hub_dev_simulator`, or add `npm i playwright-core` in the consumer (the cwd fallback resolves it) |
+| Screenshot API hangs / times out | Page in a non-renderable state (widget exception, …) | serve fails fast after an explicit 10s timeout with a 500+reason — check `/api/console` for widget errors first |
+| Smoke passes on a blank screen | Judging on HTTP 200 only | Apply the **smoke-judging guide** above (`?stats=1` lit-pixel floor + markers + negative check) |
 
 ## Standalone desktop view (PyQt)
 

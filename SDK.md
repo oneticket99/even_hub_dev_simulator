@@ -23,6 +23,9 @@ G2 실기 검증(2026-08). 버전이 오르면 재확인할 것.
   - `appLocationChanged` — GPS. `detail = { latitude, longitude, speed(m/s), ... }` (evenHubEvent 아님!)
   - `deviceStatusChanged` — 기기 상태(배터리/착용). `evenAppBridgeReady` — 브릿지 준비 신호.
 - SDK `waitForEvenAppBridge()` 는 `window.flutter_inappwebview` 존재를 전제 → mock 은 **SDK init 전에** 심어야 한다.
+- **postMessage 변형**: 일부 위젯 래퍼는 `callHandler` 대신(또는 병행)
+  `window.flutter_inappwebview.postMessage(JSON)` 로 evenAppMessage 를 보낸다(fire-and-forget).
+  하니스는 둘 다 수용하되, **반환값이 필요한 호출은 callHandler 로만** 가능하다.
 
 ## 3. 브릿지 메서드 (공식 시뮬 지원 10종 = 하니스 구현 베이스)
 

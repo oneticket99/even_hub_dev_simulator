@@ -24,6 +24,10 @@ verification (2026-08). Re-verify when the SDK version moves.
   - `appLocationChanged` — GPS. `detail = { latitude, longitude, speed(m/s), ... }` (NOT an evenHubEvent!)
   - `deviceStatusChanged` — device status (battery/wearing). `evenAppBridgeReady` — bridge-ready signal.
 - The SDK's `waitForEvenAppBridge()` assumes `window.flutter_inappwebview` exists → a mock must be installed **before** SDK init.
+- **postMessage variant**: some widget wrappers send evenAppMessage via
+  `window.flutter_inappwebview.postMessage(JSON)` instead of (or alongside) `callHandler`
+  (fire-and-forget). The harness accepts both, but **calls that need a return value must use
+  callHandler**.
 
 ## 3. Bridge methods (the 10 the official simulator supports = the harness baseline)
 

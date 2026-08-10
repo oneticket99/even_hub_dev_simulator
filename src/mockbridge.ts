@@ -223,7 +223,22 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
         pane('send', p.method)
         return handle(p.method, p.data ?? {})
       }
-      return Promise.resolve(true)  // listen_even_app_data 등 구독/기타
+      // 비-evenAppMessage 채널(listen_even_app_data 등 구독/기타)도 통합 진단 위해 로그에 표기
+      pane('send', `${name} (기타 채널)` + (p.method ? ` method=${p.method}` : ''))
+      return Promise.resolve(true)
+    },
+    // 일부 위젯 래퍼는 callHandler 대신 postMessage 로 evenAppMessage 를 보낸다(fire-and-forget).
+    // 미구현 시 "Flutter handler not available" 류 실패 → 동일 디스패치로 수용(응답은 버려짐 —
+    // 반환값이 필요한 호출은 callHandler 를 써야 한다).
+    postMessage: (payload: string): void => {
+      let p: { type?: string; method?: string; data?: Record<string, unknown> } = {}
+      try { p = JSON.parse(payload) } catch { /* */ }
+      if (p.type === 'call_even_app_method' && p.method) {
+        pane('send', `${p.method} (postMessage)`)
+        void handle(p.method, p.data ?? {})
+        return
+      }
+      pane('info', 'postMessage(비표준 페이로드 무시): ' + String(payload).slice(0, 80))
     },
   }
   ;(window as unknown as { __EVEN_HUB_APP_ID__: string }).__EVEN_HUB_APP_ID__ = opts.appId ?? 'harness'

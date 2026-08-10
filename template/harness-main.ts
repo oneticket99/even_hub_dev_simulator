@@ -6,6 +6,10 @@
 //   - 저장소 내 상대경로 소비:            import { startHarness } from '../../harness-kit/src/mockbridge'
 import { startHarness } from 'evenhub-dev-harness'
 
+// SPA 라우터를 쓰는 위젯이면 /harness/ 경로가 not-found 로 빠져 미마운트될 수 있다.
+// 라우터에 경로를 등록하기 어려우면 아래 주석을 해제해 위젯이 루트 경로를 보게 한다.
+// history.replaceState(null, '', '/')
+
 await startHarness({
   widgetEntry: () => import('/src/main.ts'),   // ← 자기 위젯 엔트리로 변경
   // glass: '#glass', log: '#log', geoInput: '#geo',                 // 템플릿 기본값

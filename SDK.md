@@ -1,5 +1,7 @@
 # Even Hub SDK / 와이어 프로토콜 레퍼런스 (시뮬레이터 범용 사용 참고)
 
+> 🇰🇷 한국어(현재 문서) · 🇬🇧 [English](SDK.en.md) — 하니스 설명서: [한국어](README.md) · [English](README.en.md)
+
 이 문서는 하니스/시뮬레이터를 **아무 Even Hub 위젯 프로젝트**에서 쓸 때 필요한 SDK 사실을 정리한다.
 근거: `@evenrealities/even_hub_sdk` 0.0.13 타입·공식 docs(hub.evenrealities.com/docs)·공식 시뮬 와이어 캡처·
 G2 실기 검증(2026-08). 버전이 오르면 재확인할 것.

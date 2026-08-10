@@ -61,8 +61,9 @@ function resolve<T extends Element>(v: string | T | null | undefined, fallback: 
 }
 
 export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
-  const glass = resolve<HTMLCanvasElement>(opts.glass, '#glass')
-  if (!glass) throw new Error('harness: glass canvas not found (options.glass / #glass)')
+  const glassEl = resolve<HTMLCanvasElement>(opts.glass, '#glass')
+  if (!glassEl) throw new Error('harness: glass canvas not found (options.glass / #glass)')
+  const glass: HTMLCanvasElement = glassEl  // 함수 선언 클로저에서도 non-null 유지
   const gctx = glass.getContext('2d')!
   const logEl = resolve<HTMLElement>(opts.log, '#log')
   const geoEl = resolve<HTMLInputElement>(opts.geoInput, '#geo')

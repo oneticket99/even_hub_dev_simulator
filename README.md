@@ -1,5 +1,7 @@
 # evenhub-dev-harness — Even Hub 위젯 범용 Dev 시뮬레이터
 
+> 🇰🇷 한국어(현재 문서) · 🇬🇧 [English](README.en.md) — SDK 레퍼런스: [한국어](SDK.md) · [English](SDK.en.md)
+
 Even Realities **Even Hub 위젯**(G2 스마트글래스 앱)을 **무수정으로 브라우저에서 구동**하는 개발 하니스.
 공식 `evenhub-simulator`(네이티브·폐쇄)가 못 하는 것을 메꾼다:
 
@@ -30,6 +32,21 @@ harness-kit/
   wirecapture.js           # 브릿지 와이어 프로토콜 관측 스크립트(조사용, 독립)
   SDK.md                   # Even Hub SDK / 와이어 프로토콜 레퍼런스(시뮬 범용 사용 시 참고)
 ```
+
+## 개발용 로그·디버그 도구 제공
+
+이 하니스는 위젯 개발에 필요한 **로그·디버그 도구를 기본 제공**한다:
+
+- **실시간 브릿지 로그 패널**: 모든 Widget↔Host 통신을 방향·종류별 색상으로 스트리밍
+  (`SEND` 브릿지 호출 / `RECV` 호스트 응답 / `EVENT` 주입 이벤트 / `INFO` 정보).
+- **console.log 미러**: 위젯의 `console.log` 출력을 로그 패널로 미러 —
+  폰 WebView 콘솔을 못 여는 문제를 브라우저에서 해소.
+- **F12 DevTools**: 하니스는 웹페이지라 크롬 DevTools(중단점·네트워크·콘솔) 기본 제공.
+- **원격 로그 폴링 API**: `GET /api/console[?since_id]` — 헤드리스 E2E·CI 에서 콘솔 로그를
+  기계 판독(마커 assert).
+- **와이어 프로토콜 관측**: `wirecapture.js` 를 아무 Even Hub WebView 표면에 주입해
+  브릿지 호출·이벤트 전문을 캡처(미공개 API 조사용).
+- **PyQt 스탠드얼론 뷰**: 안경 뷰·설정 뷰 각각에 JS 콘솔 캡처 패널 + DevTools 버튼.
 
 ## 동작 원리
 

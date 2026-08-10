@@ -1,3 +1,15 @@
 node_modules/
 *.tgz
 .DS_Store
+package-lock.json
+tsconfig.json
+
+# 로컬 전용 거버넌스 하네스(가드레일·에이전트·워크플로우 문서·검사 도구) — 공유 안 함.
+# 이 저장소는 시뮬레이터 패키지(src/serve/sim/template/wirecapture + README/SDK)만 공개한다.
+docs/
+tools/
+.claude/
+.github/
+AGENTS.md
+CLAUDE.md
+HISTORY.md

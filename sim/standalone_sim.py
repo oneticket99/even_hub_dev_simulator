@@ -34,12 +34,12 @@ I18N = {
     "ko": {
         "glasses_view": "안경 뷰 (Dev 하니스)", "settings_view": "앱 설정 뷰 (WebView)",
         "glasses_console": "안경 콘솔", "settings_console": "앱 설정 콘솔",
-        "reload": "↻ 새로고침", "devtools": "DevTools", "title": "Even G2 Standalone Simulator",
+        "reload": "↻ 새로고침", "devtools": "DevTools", "title": "Even G2 Standalone Simulator", "back": "← 뒤로",
     },
     "en": {
         "glasses_view": "Glasses View (Dev Harness)", "settings_view": "App Settings View (WebView)",
         "glasses_console": "Glasses Console", "settings_console": "Settings Console",
-        "reload": "↻ Reload", "devtools": "DevTools", "title": "Even G2 Standalone Simulator",
+        "reload": "↻ Reload", "devtools": "DevTools", "title": "Even G2 Standalone Simulator", "back": "← Back",
     },
 }
 
@@ -112,8 +112,10 @@ def _view_panel(url: str, log: QPlainTextEdit, tr: dict, lang_cb=None):
 
     bar = QHBoxLayout()
     bar.setSpacing(6)
+    back_btn = QPushButton(tr.get("back", "← Back"))
     reload_btn = QPushButton(tr["reload"])
     dev_btn = QPushButton(tr["devtools"])
+    bar.addWidget(back_btn)
     bar.addWidget(reload_btn)
     bar.addWidget(dev_btn)
     bar.addStretch(1)
@@ -124,6 +126,7 @@ def _view_panel(url: str, log: QPlainTextEdit, tr: dict, lang_cb=None):
     view.setPage(page)
     view.setUrl(QUrl(url))
     v.addWidget(view, 1)
+    back_btn.clicked.connect(view.back)   # 웹뷰 뒤로가기(구글 로그인 등에서 복귀)
 
     dev_view = QWebEngineView()
     dev_view.setWindowTitle("DevTools")

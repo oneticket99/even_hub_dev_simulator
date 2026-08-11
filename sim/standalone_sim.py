@@ -17,13 +17,14 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import sys
 
 from PyQt6.QtCore import QUrl, Qt
 from PyQt6.QtWebEngineCore import QWebEnginePage
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import (
-    QApplication, QDockWidget, QHBoxLayout, QMainWindow, QPlainTextEdit,
+    QApplication, QDockWidget, QFileDialog, QHBoxLayout, QMainWindow, QPlainTextEdit,
     QPushButton, QVBoxLayout, QWidget,
 )
 
@@ -34,12 +35,12 @@ I18N = {
     "ko": {
         "glasses_view": "안경 뷰 (Dev 하니스)", "settings_view": "앱 설정 뷰 (WebView)",
         "glasses_console": "안경 콘솔", "settings_console": "앱 설정 콘솔",
-        "reload": "↻ 새로고침", "devtools": "DevTools", "title": "Even G2 Standalone Simulator", "back": "← 뒤로",
+        "reload": "↻ 새로고침", "devtools": "DevTools", "title": "Even G2 Standalone Simulator", "back": "← 뒤로", "shot": "📸 스크린샷",
     },
     "en": {
         "glasses_view": "Glasses View (Dev Harness)", "settings_view": "App Settings View (WebView)",
         "glasses_console": "Glasses Console", "settings_console": "Settings Console",
-        "reload": "↻ Reload", "devtools": "DevTools", "title": "Even G2 Standalone Simulator", "back": "← Back",
+        "reload": "↻ Reload", "devtools": "DevTools", "title": "Even G2 Standalone Simulator", "back": "← Back", "shot": "📸 Screenshot",
     },
 }
 
@@ -75,6 +76,11 @@ class LoggingPage(QWebEnginePage):
         super().__init__(parent)
         self._log = log
         self._lang_cb = lang_cb
+        # 마이크 등 미디어 권한 자동 허용(STT 하니스 테스트 — 시스템 마이크로 발화 인식)
+        self.featurePermissionRequested.connect(self._grant_permission)
+
+    def _grant_permission(self, origin, feature):  # noqa: ANN001
+        self.setFeaturePermission(origin, feature, QWebEnginePage.PermissionPolicy.PermissionGrantedByUser)
 
     def javaScriptConsoleMessage(self, level, message, line, source):  # noqa: N802
         if self._lang_cb and isinstance(message, str) and message.startswith("harness-lang "):
@@ -115,9 +121,11 @@ def _view_panel(url: str, log: QPlainTextEdit, tr: dict, lang_cb=None):
     back_btn = QPushButton(tr.get("back", "← Back"))
     reload_btn = QPushButton(tr["reload"])
     dev_btn = QPushButton(tr["devtools"])
+    shot_btn = QPushButton(tr.get("shot", "📸 스크린샷"))
     bar.addWidget(back_btn)
     bar.addWidget(reload_btn)
     bar.addWidget(dev_btn)
+    bar.addWidget(shot_btn)
     bar.addStretch(1)
     v.addLayout(bar)
 
@@ -137,8 +145,35 @@ def _view_panel(url: str, log: QPlainTextEdit, tr: dict, lang_cb=None):
         dev_view.show()
         dev_view.raise_()
 
+    # 안경 디스플레이(#glass 캔버스) → 576×288 PNG 저장(포털 스크린샷 규격). 없으면(설정 뷰) 무시.
+    def save_shot(data_url: object) -> None:
+        s = str(data_url or "")
+        if not s.startswith("data:image/png;base64,"):
+            return
+        png = base64.b64decode(s.split(",", 1)[1])
+        path, _ = QFileDialog.getSaveFileName(wrap, "안경 스크린샷 저장", "glasses-576x288.png", "PNG (*.png)")
+        if path:
+            with open(path, "wb") as f:
+                f.write(png)
+
+    def shot() -> None:
+        # #glass 캔버스 → 포털 합성용 RGBA. 색 정규화(밝은 초록) + 90% 상한 알파(AR 반투명감).
+        js = (
+            "(function(){var c=document.querySelector('#glass');if(!c)return '';"
+            "var o=document.createElement('canvas');o.width=c.width;o.height=c.height;"
+            "var x=o.getContext('2d');x.drawImage(c,0,0);"
+            "var m=x.getImageData(0,0,o.width,o.height),d=m.data,i,v,s;"
+            "for(i=0;i<d.length;i+=4){v=Math.max(d[i],d[i+1],d[i+2]);"
+            "if(v===0){d[i+3]=0;continue;}s=255/v;"
+            "d[i]*=s;d[i+1]*=s;d[i+2]*=s;"
+            "d[i+3]=Math.min(230,Math.round(230*Math.pow(v/255,0.6)));}"
+            "x.putImageData(m,0,0);return o.toDataURL('image/png');})()"
+        )
+        page.runJavaScript(js, save_shot)
+
     reload_btn.clicked.connect(view.reload)
     dev_btn.clicked.connect(toggle)
+    shot_btn.clicked.connect(shot)
     return wrap, reload_btn, dev_btn
 
 

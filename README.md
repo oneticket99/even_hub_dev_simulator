@@ -21,7 +21,7 @@ Even Realities **Even Hub 위젯**(G2 스마트글래스 앱)을 **무수정으�
 
 ## 구성
 
-```
+```text
 harness-kit/
   src/mockbridge.ts        # 핵심: mock EvenAppBridge + 캔버스 렌더러 + 입력 mock. startHarness(options)
   serve.mjs                # 헤드리스 Chrome automation 서버(공식 시뮬 API 패리티)
@@ -48,6 +48,10 @@ harness-kit/
 - **와이어 프로토콜 관측**: `wirecapture.js` 를 아무 Even Hub WebView 표면에 주입해
   브릿지 호출·이벤트 전문을 캡처(미공개 API 조사용).
 - **PyQt 스탠드얼론 뷰**: 안경 뷰·설정 뷰 각각에 JS 콘솔 캡처 패널 + DevTools 버튼.
+- **📸 포털 스크린샷 버튼**: 안경 뷰 `#glass` 캔버스를 스토어 규격 **576×288 RGBA PNG**로 저장 —
+  검정(OFF) 픽셀 투명, 발광 초록 정규화·90% 상한 알파로 포털 Environment 배경 위 자연 합성.
+- **시스템 마이크 캡처**: mock 브릿지의 `audioControl` 을 브라우저 `getUserMedia` 로 배선 —
+  실제 마이크 발화를 16kHz PCM16 `audioEvent` 로 주입해 STT(프롬프터·음성 에이전트) 실측 테스트.
 
 ## 동작 원리
 
@@ -65,27 +69,33 @@ Even Hub 위젯은 폰 Even 앱의 Flutter WebView 에서 실행되며, 호스�
 전제: Vite 기반 Even Hub 위젯 프로젝트(공식 `evenhub init` 구조: `index.html` + `src/main.ts`).
 
 1. **kit 설치** — 아래 중 하나:
+
    ```bash
    npm install github:oneticket99/even_hub_dev_simulator   # git 의존성
    npm install /path/to/harness-kit                        # 로컬 경로
    # 또는 kit 디렉터리를 저장소에 통째로 복사(상대경로 import)
    ```
+
 2. **하니스 페이지 생성**: `template/index.html` + `template/harness-main.ts` 를
    위젯 루트의 `harness/` 디렉터리로 복사.
 3. **부트스트랩 수정**: `harness/harness-main.ts` 의 `widgetEntry` 를 자기 엔트리로:
+
    ```ts
    import { startHarness } from 'evenhub-dev-harness'   // 복사 사용 시: '../상대경로/src/mockbridge'
    await startHarness({ widgetEntry: () => import('/src/main.ts') })
    ```
+
    위젯의 이벤트 캡처 컨테이너(`isEventCapture:1`)가 id 11/이름 'cap' 이 아니면
    `capture: { containerID, containerName }` 옵션으로 일치시킨다(불일치 시 Click/Up/Down 버튼 무반응).
 4. **육안 개발**: `npm run dev` 후 브라우저에서 `http://localhost:5173/harness/` 열기.
    버튼 = 링 조작(Up/Down=슬라이드, Click=클릭, Double=더블탭), GPS 주입은 1회성.
 5. **자동 E2E**: 시스템 Chrome 설치 전제.
+
    ```bash
    node node_modules/evenhub-dev-harness/serve.mjs --widget http://127.0.0.1:5173/harness/ --port 9899
    curl http://127.0.0.1:9899/api/ping        # → pong
    ```
+
    기존에 공식 시뮬 automation API 로 짠 E2E 러너가 있으면 `--base http://127.0.0.1:9899` 로 그대로 돌린다.
 
 ## startHarness 옵션 레퍼런스
@@ -138,6 +148,7 @@ curl ":9899/api/dom/text?selector=.route-status"   # 상태 assert
 
 **smoke 판정 가이드(중요)**: 빈 캔버스도 스크린샷이 HTTP 200/정상 PNG 로 나온다 —
 **200 판정은 거짓양성**. 판정은 반드시:
+
 1. `GET /api/screenshot/glasses?stats=1` → `{litPixels, totalPixels}` 의 **발광 픽셀 하한선**
    (예: `litPixels > 500`)으로,
 2. `/api/console` 의 위젯 `ready`/상태 **마커 문자열** assert 로,
@@ -167,6 +178,17 @@ python sim/standalone_sim.py --harness http://127.0.0.1:5173/harness/ --settings
 ```
 
 `--settings` 는 아무 웹 UI 나 가능(설정 페이지가 없으면 생략하고 패널을 닫아도 됨).
+
+안경 뷰 상단 버튼바:
+
+| 버튼 | 동작 |
+| --- | --- |
+| ← 뒤로 | 웹뷰 뒤로가기(OAuth 등에서 복귀) |
+| ↻ 새로고침 | 하니스 리로드 |
+| DevTools | 크롬 DevTools 열기 |
+| 📸 스크린샷 | `#glass` 캔버스 → **576×288 RGBA PNG** 저장(포털 스토어 규격). 검정 투명·발광 초록 90% 알파 |
+
+마이크 권한은 자동 허용(`featurePermissionRequested` → 허가) — 시스템 마이크로 STT 발화 인식을 실측한다.
 
 ## 와이어 캡처 (조사 도구)
 

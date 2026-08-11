@@ -65,6 +65,8 @@ export interface HarnessOptions {
   storagePrefix?: string
   /** 알 수 없는 브릿지 메서드 처리 훅(반환값이 그대로 응답). 미지정 시 null 응답 + 로그 */
   onUnknownMethod?: (method: string, data: Record<string, unknown>) => unknown
+  /** 글래스 렌더 틴트[r,g,b]. 실기 G2 초록 마이크로LED 재현(기본). null 이면 원본(그레이스케일) 유지. */
+  tint?: [number, number, number] | null
 }
 
 export interface HarnessApi {
@@ -99,6 +101,7 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
   const capture = opts.capture ?? { containerID: 11, containerName: 'cap' }
   const [defLat, defLon] = opts.defaultGeo ?? [37.5665, 126.978]
   const prefix = opts.storagePrefix ?? 'h_'
+  const tint: [number, number, number] | null = opts.tint === undefined ? [0x39, 0xff, 0x88] : opts.tint  // 실기 초록 기본
 
   // ── 언어(i18n) ────────────────────────────────────────────
   let stored: string | null = null
@@ -219,6 +222,21 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
       gctx.fillStyle = '#39ff88'; gctx.font = '16px system-ui, sans-serif'; gctx.textBaseline = 'top'
       listBox.items.slice(0, 12).forEach((it, i) => gctx.fillText(it.slice(0, 60), listBox!.rect.x + 8, listBox!.rect.y + 8 + i * 20))
     }
+    // 실기(G2) 룩 재현: 전체를 초록 단색으로 틴트(밝기 유지). opts.tint===null 이면 원본 유지.
+    if (tint !== null) applyTint()
+  }
+  // 발광 픽셀을 초록 모노크롬으로. 검정 배경은 그대로. (실기 = 초록 마이크로LED)
+  function applyTint(): void {
+    try {
+      const im = gctx.getImageData(0, 0, glass.width, glass.height)
+      const d = im.data
+      const [tr, tg, tb2] = tint as [number, number, number]
+      for (let i = 0; i < d.length; i += 4) {
+        const lum = Math.max(d[i], d[i + 1], d[i + 2]) / 255
+        d[i] = Math.round(tr * lum); d[i + 1] = Math.round(tg * lum); d[i + 2] = Math.round(tb2 * lum)
+      }
+      gctx.putImageData(im, 0, 0)
+    } catch { /* taint 등 무해 */ }
   }
   function drawImageData(containerID: number, bytes: number[]): void {
     const blob = new Blob([new Uint8Array(bytes)], { type: 'image/png' })
@@ -286,7 +304,7 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
       case 'getAppLocation': { const [lat, lon] = geoParts(); return { latitude: lat, longitude: lon, speed: 0 } }
       case 'startAppLocationUpdates': return true  // GPS 자동주입 안 함(opt-in) — 주입은 pushGeo/버튼으로 1회씩.
       case 'stopAppLocationUpdates': return true
-      case 'audioControl': return false
+      case 'audioControl': { const on = (data as { isOpen?: boolean }).isOpen; if (on) void startMic(); else stopMic(); return true }
       case 'imuControl': { const on = (data as { isOpen?: boolean }).isOpen; if (on) startImu(); else stopImu(); return true }
       // 카메라/앨범: 고정 PNG 헤더 바이트 반환(실 촬영 없음). 위젯이 이미지 경로를 태우는지만 검증용.
       case 'pickImageFromAlbum':
@@ -296,6 +314,42 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
         if (opts.onUnknownMethod) return opts.onUnknownMethod(method, data)
         pane('info', t('unknownMethod') + method); return null
     }
+  }
+
+  // ── 시스템 마이크 캡처(하니스 STT 테스트, 안경 없이) ────────────
+  // audioControl(true) 시 getUserMedia → 16kHz PCM16 청크를 audioEvent.audioPcm 으로 주입(실기 안경 마이크 모사).
+  let micStream: MediaStream | null = null
+  let micCtx: AudioContext | null = null
+  function downsampleTo16k(f32: Float32Array, inRate: number): Uint8Array {
+    const ratio = inRate / 16000
+    const outLen = Math.max(0, Math.floor(f32.length / ratio))
+    const out = new Int16Array(outLen)
+    for (let i = 0; i < outLen; i++) {
+      const s = Math.max(-1, Math.min(1, f32[Math.floor(i * ratio)] || 0))
+      out[i] = s < 0 ? s * 32768 : s * 32767
+    }
+    return new Uint8Array(out.buffer)
+  }
+  async function startMic(): Promise<void> {
+    if (micStream) return
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } })
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      micCtx = ctx
+      const src = ctx.createMediaStreamSource(micStream)
+      const proc = ctx.createScriptProcessor(4096, 1, 1)  // deprecated 지만 WebEngine 동작
+      const inRate = ctx.sampleRate
+      proc.onaudioprocess = (ev: AudioProcessingEvent) => {
+        const bytes = downsampleTo16k(ev.inputBuffer.getChannelData(0), inRate)
+        if (bytes.length) window.dispatchEvent(new CustomEvent('evenHubEvent', { detail: { audioEvent: { audioPcm: bytes } } }))
+      }
+      src.connect(proc); proc.connect(ctx.destination)
+      pane('info', 'mic on (' + inRate + 'Hz→16k)')
+    } catch (e) { pane('info', 'mic err: ' + (e as Error).message) }
+  }
+  function stopMic(): void {
+    if (micCtx) { try { void micCtx.close() } catch { /* */ } micCtx = null }
+    if (micStream) { micStream.getTracks().forEach((tr) => tr.stop()); micStream = null }
   }
 
   // ── 브릿지 mock 심기(SDK init 전) ────────────────────────

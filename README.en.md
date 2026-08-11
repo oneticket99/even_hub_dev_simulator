@@ -23,7 +23,7 @@ width, fonts, and pixel fidelity belongs to the official simulator and real hard
 
 ## Layout
 
-```
+```text
 harness-kit/
   src/mockbridge.ts        # Core: mock EvenAppBridge + canvas renderer + input mocks. startHarness(options)
   serve.mjs                # Headless-Chrome automation server (official-simulator API parity)
@@ -53,6 +53,12 @@ The harness ships with the **log and debug tooling you need for widget developme
   record full bridge calls and events (for investigating undocumented APIs).
 - **PyQt standalone view**: glasses view and settings view each get a JS console capture
   panel plus a DevTools button.
+- **📸 Portal screenshot button**: saves the glasses `#glass` canvas as a store-spec
+  **576×288 RGBA PNG** — black (OFF) pixels transparent, lit green normalized with a 90%
+  alpha cap so it composites naturally over the portal Environment backgrounds.
+- **System-mic capture**: the mock bridge's `audioControl` is wired to browser `getUserMedia`,
+  injecting real microphone speech as 16 kHz PCM16 `audioEvent`s to live-test STT
+  (prompter / voice agent).
 
 ## How it works
 
@@ -73,18 +79,22 @@ Prerequisite: a Vite-based Even Hub widget project (the official `evenhub init` 
 `index.html` + `src/main.ts`).
 
 1. **Install the kit** — one of:
+
    ```bash
    npm install github:oneticket99/even_hub_dev_simulator   # git dependency
    npm install /path/to/harness-kit                        # local path
    # or copy the kit directory into your repo (relative import)
    ```
+
 2. **Create the harness page**: copy `template/index.html` + `template/harness-main.ts`
    into a `harness/` directory under your widget root.
 3. **Edit the bootstrap**: point `widgetEntry` in `harness/harness-main.ts` at your entry:
+
    ```ts
    import { startHarness } from 'evenhub-dev-harness'   // when copied: '../relative/path/src/mockbridge'
    await startHarness({ widgetEntry: () => import('/src/main.ts') })
    ```
+
    If your widget's event-capture container (`isEventCapture:1`) is not id 11 / name 'cap',
    match it via the `capture: { containerID, containerName }` option (otherwise the
    Click/Up/Down buttons will appear dead).
@@ -92,10 +102,12 @@ Prerequisite: a Vite-based Even Hub widget project (the official `evenhub init` 
    Buttons map to ring gestures (Up/Down = slide, Click = tap, Double = double-tap);
    GPS injection is one-shot.
 5. **Automated E2E** (system Chrome required):
+
    ```bash
    node node_modules/evenhub-dev-harness/serve.mjs --widget http://127.0.0.1:5173/harness/ --port 9899
    curl http://127.0.0.1:9899/api/ping        # → pong
    ```
+
    If you already have an E2E runner written against the official simulator's automation
    API, run it as-is with `--base http://127.0.0.1:9899`.
 
@@ -150,6 +162,7 @@ Flags: `--widget <harness URL>` `--port <port>` `--glass <canvas selector>`.
 
 **Smoke-judging guide (important)**: an empty canvas still returns HTTP 200 with a valid PNG —
 **judging on 200 is a false positive**. Always judge by:
+
 1. `GET /api/screenshot/glasses?stats=1` → `{litPixels, totalPixels}` with a **lit-pixel floor**
    (e.g. `litPixels > 500`),
 2. asserting a widget `ready`/state **marker string** via `/api/console`,
@@ -181,6 +194,18 @@ python sim/standalone_sim.py --harness http://127.0.0.1:5173/harness/ --settings
 ```
 
 `--settings` can be any web UI (close the panel if you don't have one).
+
+Glasses-view button bar:
+
+| Button | Action |
+| --- | --- |
+| ← Back | web-view back (return from OAuth, etc.) |
+| ↻ Reload | reload the harness |
+| DevTools | open Chrome DevTools |
+| 📸 Screenshot | `#glass` canvas → **576×288 RGBA PNG** (portal store spec). Black transparent, lit green at 90% alpha |
+
+Microphone permission is auto-granted (`featurePermissionRequested` → grant) so you can
+live-test STT recognition with the system microphone.
 
 ## Wire capture (research tool)
 

@@ -161,8 +161,8 @@ def main() -> int:
     L = Qt.DockWidgetArea.LeftDockWidgetArea
     R = Qt.DockWidgetArea.RightDockWidgetArea
 
-    g_log = QPlainTextEdit(); g_log.setReadOnly(True); g_log.setMaximumBlockCount(1000)
-    s_log = QPlainTextEdit(); s_log.setReadOnly(True); s_log.setMaximumBlockCount(1000)
+    g_log = QPlainTextEdit(); g_log.setReadOnly(True); g_log.setMaximumBlockCount(300)  # 메모리 관리: 300줄 초과 시 과거 자동삭제
+    s_log = QPlainTextEdit(); s_log.setReadOnly(True); s_log.setMaximumBlockCount(300)  # 메모리 관리: 300줄 초과 시 과거 자동삭제
 
     # 하니스 웹 토글(#langToggle)의 'harness-lang' 콘솔 마커로 PyQt UI 언어를 실시간 동기.
     btns: list = []

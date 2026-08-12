@@ -101,7 +101,7 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
   const capture = opts.capture ?? { containerID: 11, containerName: 'cap' }
   const [defLat, defLon] = opts.defaultGeo ?? [37.5665, 126.978]
   const prefix = opts.storagePrefix ?? 'h_'
-  const tint: [number, number, number] | null = opts.tint === undefined ? [0x39, 0xff, 0x88] : opts.tint  // 실기 초록 기본
+  const tint: [number, number, number] | null = opts.tint === undefined ? [0x00, 0xff, 0x00] : opts.tint  // 실기/공식 시뮬 순수 초록(0,255,0) 기본
 
   // ── 언어(i18n) ────────────────────────────────────────────
   let stored: string | null = null
@@ -207,19 +207,19 @@ export async function startHarness(opts: HarnessOptions): Promise<HarnessApi> {
     // 텍스트 컨테이너: 펌웨어 border(radius/width) + content 근사 렌더(프레이밍 확인용).
     for (const tb of textBoxes.values()) {
       if (tb.borderW > 0) {
-        gctx.strokeStyle = '#39ff88'; gctx.lineWidth = tb.borderW
+        gctx.strokeStyle = '#00ff00'; gctx.lineWidth = tb.borderW
         roundRectPath(tb.rect.x, tb.rect.y, tb.rect.w, tb.rect.h, tb.borderR); gctx.stroke()
       }
       if (tb.content) {  // 텍스트 근사(줄바꿈만; 폰트 정합은 실기)
-        gctx.fillStyle = '#39ff88'; gctx.font = '15px system-ui, sans-serif'; gctx.textBaseline = 'top'
+        gctx.fillStyle = '#00ff00'; gctx.font = '15px system-ui, sans-serif'; gctx.textBaseline = 'top'
         const pad = 8; let y = tb.rect.y + pad
         for (const ln of tb.content.split('\n')) { if (y + 18 > tb.rect.y + tb.rect.h) break; gctx.fillText(ln.slice(0, 72), tb.rect.x + pad, y); y += 19 }
       }
     }
     if (listBox) {  // OS List 텍스트 근사 렌더
-      gctx.strokeStyle = '#39ff88'; gctx.lineWidth = 1
+      gctx.strokeStyle = '#00ff00'; gctx.lineWidth = 1
       gctx.strokeRect(listBox.rect.x, listBox.rect.y, listBox.rect.w, listBox.rect.h)
-      gctx.fillStyle = '#39ff88'; gctx.font = '16px system-ui, sans-serif'; gctx.textBaseline = 'top'
+      gctx.fillStyle = '#00ff00'; gctx.font = '16px system-ui, sans-serif'; gctx.textBaseline = 'top'
       listBox.items.slice(0, 12).forEach((it, i) => gctx.fillText(it.slice(0, 60), listBox!.rect.x + 8, listBox!.rect.y + 8 + i * 20))
     }
     // 실기(G2) 룩 재현: 전체를 초록 단색으로 틴트(밝기 유지). opts.tint===null 이면 원본 유지.

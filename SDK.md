@@ -37,6 +37,8 @@ G2 실기 검증(2026-08). 버전이 오르면 재확인할 것.
 | `createStartUpPageContainer` | `0=success / 1=invalid / 2=oversize / 3=oom` | **앱당 정확히 1회.** HMR 재실행 시 시뮬이 1(이미 생성)을 돌려주는 아티팩트 있음 → E2E 는 클린 재시작 후 |
 | `rebuildPageContainer` | `true` | 페이지 전체 redraw(무거움 — BLE 재전송) |
 | `updateImageRawData` | `'success'` | `{containerID, imageData}`. **imageData 는 raw 바이트(number[]/Uint8Array)** — base64 문자열은 시뮬만 관대하고 실기는 무시 |
+| `zOrderIndex`(공통) | — | **전부 아니면 전무 + 고유값.** 한 컨테이너라도 쓰면 같은 페이지 전 컨테이너가 지정해야 하고 값이 중복되면 안 됨. 위반 시 `createStartUpPageContainer` = `1`(invalid), 페이지 전체 실패 |
+| `isEventCapture:1` + `borderWidth:0` | — | 실기기 firmware 가 포커스 대상으로 인식하지 않아 링 이벤트 미라우팅. `borderWidth >= 2` 필요(mock 은 재현 안 함) |
 | `textContainerUpgrade` | `true` | 텍스트 컨테이너 content in-place 갱신 |
 | `shutDownPageContainer` | `true` | 인자 1=확인 다이얼로그(스토어 심사 필수), 0=즉시 종료(리젝 사유) |
 | `audioControl` | `false`(시뮬) | 실기는 마이크 PCM 을 `audioEvent{audioPcm}` 로 스트림 |

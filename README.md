@@ -159,7 +159,10 @@ curl ":9899/api/dom/text?selector=.route-status"   # 상태 assert
 | 증상 | 원인 | 해법 |
 |---|---|---|
 | 위젯이 조용히 아무것도 안 함(브릿지 호출 0) | 위젯이 폰측 UI 마운트 루트(`#app` 등)를 요구하는데 하니스 페이지에 없음 | 템플릿의 숨김 `<div id="app">` 유지/추가. 다른 id 면 그에 맞출 것 |
-| SPA 라우터 not-found → 위젯 미마운트 | 라우터가 `/harness/` 경로를 모름 | 부트스트랩에서 `history.replaceState(null,'','/')`(템플릿 주석) 또는 라우터에 경로 등록 |
+| SPA 라우터 not-found → 위젯 미마운트 | 라우터가 `/harness/` 경로를 모름 | **라우터에 `/harness/`·`/harness` 등록(권장).** `replaceState` 우회는 새로고침에 취약 — 아래 참조 |
+| 새로고침하니 안경 캔버스가 비고 폰 UI만 남음 | `replaceState` 로 주소가 `/` 가 돼 재로드가 하니스 대신 앱을 부름 → mock 브릿지 미설치 | 라우터에 하니스 경로 등록. `[EvenAppBridge] postMessage: Flutter handler not available` + `createStartUpPageContainer` 실패가 신호 |
+| `createStartUpPageContainer` 가 `1`(invalid) | zOrderIndex 계약 위반 또는 시뮬 HMR 상태 누적 | 콘솔의 `[EvenHub:...]` 오류 확인. 없으면 클린 재시작 후 재현 확인 |
+| 폰 UI 를 표시했는데 화면에 안 보임 | `#app` 을 문서 끝(로그 패널 뒤)에 둠 → flex 레이아웃에서 화면 밖으로 밀림 | 로그 패널 **앞**에 배치 |
 | `postMessage: Flutter handler not available` | 위젯 래퍼가 `callHandler` 외에 `flutter_inappwebview.postMessage` 사용 | kit 이 postMessage 도 수용(fire-and-forget). 최신 kit 로 갱신. 반환값 필요한 호출은 callHandler 필수 |
 | Click/Up/Down 버튼 무반응 | 캡처 컨테이너 불일치(kit 기본 `11/'cap'` vs 위젯 자체 값) | `startHarness({ capture: { containerID, containerName } })` 로 위젯 값과 일치 |
 | 로컬경로 설치 후 serve.mjs 기동 실패 | `npm install <로컬경로>` 는 심링크 — 의존성(playwright-core) 미설치 | `npm install github:oneticket99/even_hub_dev_simulator`(권장) 또는 소비 프로젝트에 `npm i playwright-core` 추가(cwd 폴백이 해석) |
@@ -215,3 +218,16 @@ SDK 자체의 제약(컨테이너 수·이미지 캡·이벤트 채널 등)은 [
 ## 라이선스
 
 MIT
+
+## 컨테이너 계약 주의 (실측)
+
+SDK 타입 정의에 설명이 없어 실제로 부딪히기 전까지 드러나지 않는 규칙입니다. 위반하면 `createStartUpPageContainer` 가 `1`(invalid) 을 반환하고 **페이지가 통째로 생성되지 않습니다**(부분 실패 아님).
+
+| 규칙 | 위반 시 콘솔 |
+|---|---|
+| 한 컨테이너라도 `zOrderIndex` 를 쓰면 **같은 페이지의 모든 컨테이너**가 지정해야 함 | `[EvenHub:MISSING_Z_ORDER_INDEX] textObject[N] is missing zOrderIndex while another container on the same page uses it.` |
+| `zOrderIndex` 는 컨테이너 간 **고유**해야 함 | `[EvenHub:DUPLICATE_Z_ORDER_INDEX] textObject[N] duplicates zOrderIndex X from textObject[M].` |
+
+`isEventCapture: 1` 텍스트 컨테이너에 `borderWidth: 0` 을 주면 실기기 firmware 가 포커스 대상으로 인식하지 않아 링 이벤트를 라우팅하지 않습니다. `borderWidth >= 2` 를 사용하십시오(하니스 mock 은 이 동작을 재현하지 않음).
+
+**E2E 는 시뮬을 클린 재시작한 뒤 실행하십시오.** Vite HMR 로 모듈만 재실행되면 이전 startup page 가 남아 재호출이 `1` 을 반환합니다. 실기기는 앱 실행마다 클린 슬레이트라 발생하지 않는 시뮬 라이프사이클 아티팩트입니다.

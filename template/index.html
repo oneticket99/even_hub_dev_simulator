@@ -8,7 +8,7 @@
     <title>Even G2 — Dev Harness</title>
     <style>
       * { box-sizing: border-box; }
-      body { margin: 0; background: #0b0f0d; color: #cfe; font: 13px/1.5 system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; }
+      body { margin: 0; background: #0b0f0d; color: #cfe; font: 13px/1.5 system-ui, sans-serif; min-height: 100vh; overflow: auto; display: flex; flex-direction: column; }
       header { padding: 6px 12px; background: #121a16; border-bottom: 1px solid #1f2d26; display: flex; gap: 12px; align-items: center; }
       header b { color: #39ff88; }
       header .hint { color: #6b8; font-size: 12px; }
@@ -57,6 +57,11 @@
         <div class="hint" data-i18n="ringHint">링 조작 대응: Up/Down=슬라이드, Click=클릭, Double=더블탭</div>
       </div>
     </div>
+    <!-- 위젯 폰측 UI 마운트 루트. 위젯이 #app(등)에 마운트해야 동작하는 구조면 이 요소가
+         없을 때 조용히 비활성된다. 위젯이 다른 id 를 쓰면 여기서 맞출 것.
+         기본 숨김 — 안경 뷰에는 안경 화면만 보여야 한다. 디버깅으로 표시할 때는 style 을 제거하되
+         반드시 로그 패널 "앞"인 이 위치를 유지할 것(뒤에 두면 flex 레이아웃에서 화면 밖으로 밀린다). -->
+    <div id="app" style="display:none"></div>
     <div class="logwrap">
       <div class="bar">
         <span data-i18n="logTitle">실시간 디버그 로그</span>
@@ -70,10 +75,6 @@
       </div>
       <div id="log"></div>
     </div>
-    <!-- 위젯 폰측 UI 마운트 루트. 위젯이 #app(등)에 마운트해야 동작하는 구조면 이 요소가
-         없을 때 조용히 비활성될 수 있다. 위젯이 다른 id 를 쓰면 여기서 맞출 것.
-         폰 UI 를 보고 싶으면 style 제거해 표시로 전환. -->
-    <div id="app" style="display:none"></div>
     <!-- 프로젝트에 맞게 경로 조정 -->
     <script type="module" src="./harness-main.ts"></script>
   </body>

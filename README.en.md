@@ -174,7 +174,10 @@ Flags: `--widget <harness URL>` `--port <port>` `--glass <canvas selector>`.
 | Symptom | Cause | Fix |
 |---|---|---|
 | Widget silently does nothing (zero bridge calls) | Widget requires a phone-side mount root (`#app`, …) missing from the harness page | Keep/add the template's hidden `<div id="app">`; match the id your widget uses |
-| SPA router not-found → widget never mounts | Router doesn't know the `/harness/` path | Uncomment `history.replaceState(null,'','/')` in the bootstrap template, or register the route |
+| SPA router not-found → widget never mounts | Router doesn't know the `/harness/` path | **Register `/harness/` and `/harness` in your router (recommended).** The `replaceState` workaround breaks on reload — see below |
+| After a reload the glasses canvas is blank and only the phone UI remains | `replaceState` rewrote the address to `/`, so the reload loads the app instead of the harness → no mock bridge | Register the harness path in the router. Signals: `[EvenAppBridge] postMessage: Flutter handler not available` plus a failing `createStartUpPageContainer` |
+| `createStartUpPageContainer` returns `1` (invalid) | zOrderIndex contract violation, or accumulated simulator state after HMR | Check the console for `[EvenHub:...]` errors. If there are none, restart clean and retry |
+| Phone UI is enabled but never visible | `#app` placed at the end of the document (after the log panel) → pushed off-screen by the flex layout | Place it **before** the log panel |
 | `postMessage: Flutter handler not available` | Widget wrapper uses `flutter_inappwebview.postMessage` besides `callHandler` | The kit accepts postMessage too (fire-and-forget). Update to the latest kit. Calls needing a return value must use callHandler |
 | Click/Up/Down buttons do nothing | Capture-container mismatch (kit default `11/'cap'` vs your widget's values) | Match via `startHarness({ capture: { containerID, containerName } })` |
 | serve.mjs fails to start after a local-path install | `npm install <local path>` symlinks and skips deps (playwright-core missing) | Prefer `npm install github:oneticket99/even_hub_dev_simulator`, or add `npm i playwright-core` in the consumer (the cwd fallback resolves it) |
@@ -237,3 +240,16 @@ For constraints of the SDK itself (container counts, image caps, event channels,
 ## License
 
 MIT
+
+## Container contract gotchas (measured)
+
+These rules are absent from the SDK type declarations. Violating them makes `createStartUpPageContainer` return `1` (invalid) and **the whole page fails to be created** — not a partial failure.
+
+| Rule | Console on violation |
+|---|---|
+| If **any** container sets `zOrderIndex`, **every container on that page** must set it | `[EvenHub:MISSING_Z_ORDER_INDEX] textObject[N] is missing zOrderIndex while another container on the same page uses it.` |
+| `zOrderIndex` must be **unique** across containers | `[EvenHub:DUPLICATE_Z_ORDER_INDEX] textObject[N] duplicates zOrderIndex X from textObject[M].` |
+
+An `isEventCapture: 1` text container with `borderWidth: 0` is not treated as a focus target by the device firmware, so ring events are never routed to it. Use `borderWidth >= 2`. The harness mock does not reproduce this behaviour.
+
+**Restart the simulator clean before running E2E.** With Vite HMR only the modules re-run, so a previous startup page can survive and the next call returns `1`. Real devices start from a clean slate each launch, so this is a simulator lifecycle artifact.

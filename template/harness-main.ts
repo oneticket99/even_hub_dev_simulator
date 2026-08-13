@@ -6,8 +6,14 @@
 //   - 저장소 내 상대경로 소비:            import { startHarness } from '../../harness-kit/src/mockbridge'
 import { startHarness } from 'evenhub-dev-harness'
 
-// SPA 라우터를 쓰는 위젯이면 /harness/ 경로가 not-found 로 빠져 미마운트될 수 있다.
-// 라우터에 경로를 등록하기 어려우면 아래 주석을 해제해 위젯이 루트 경로를 보게 한다.
+// SPA 라우터를 쓰는 위젯이면 /harness/ 경로가 not-found 로 빠져 미마운트된다.
+//
+// [권장] 위젯 라우터에 하니스 경로를 등록한다. 끝 슬래시 유무 둘 다:
+//   case '/harness/': case '/harness': case '/': return { name: 'navigation', ... }
+//
+// [비권장] 아래 replaceState 는 주소를 '/' 로 바꾸므로 **새로고침하면 하니스가 사라진다**
+// (재로드가 '/' 를 부름 → mock 브릿지 미설치 → createStartUpPageContainer 실패).
+// 라우터를 못 고치는 경우에만 쓰고, 그 창에서 새로고침하지 말 것.
 // history.replaceState(null, '', '/')
 
 await startHarness({
